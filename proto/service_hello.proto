@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package pb;
+
+import "hello.proto";
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+option go_package = "f/pb";
+
+option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+  info: {
+    title: "f"
+    version: "1.0"
+    contact: {
+      name: "f gRPC-Gateway project"
+      url: "https://github.com/alperdemr/f"
+      email: "demiralper007@gmail.com"
+    };
+  };
+};
+
+service HelloService {
+  rpc SayHello (HelloRequest) returns (HelloResponse) {
+    option (google.api.http) = {
+      post: "/v1/hello"
+      body: "*"
+    };
+  }
+}
+
