@@ -5,7 +5,11 @@ import (
 	"f/api"
 	"f/gapi"
 	"f/pb"
-	"log"
+	"os"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+
 	"net"
 	"net/http"
 
@@ -15,6 +19,8 @@ import (
 )
 
 func main () {
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+
 	go runGrpcServer()
 	runGatewayServer()
 }
@@ -25,19 +31,25 @@ func runFiberServer() {
 }
 
 func runGrpcServer() {
-	grpcServer := grpc.NewServer()
+	
 	server := gapi.NewServer()
+
+	grpcLogger := grpc.UnaryInterceptor(gapi.GrpcLogger)
+	grpcServer := grpc.NewServer(grpcLogger)
+
 	pb.RegisterHelloServiceServer(grpcServer, server)
 	reflection.Register(grpcServer)
 
+
+
 	listener,err := net.Listen("tcp", ":9090")
 	if err != nil {
-		log.Fatal("cannot create listener")
+		log.Fatal().Msg("cannot create listener")
 	}
 	log.Printf("start gRPC server at %s", listener.Addr().String())
 	err = grpcServer.Serve(listener)
 	if err != nil {
-		log.Fatal("cannot start gRPC server")
+		log.Fatal().Msg("cannot start gRPC server")
 	}
 
 	
@@ -50,7 +62,7 @@ func runGatewayServer() {
 	defer cancel()
 	err := pb.RegisterHelloServiceHandlerServer(ctx, grpcMux, server)
 	if err != nil {
-		log.Fatal("cannot register handler server", err)
+		log.Fatal().Msg("cannot register gateway server")
 	}
 
 	mux := http.NewServeMux()
@@ -61,17 +73,14 @@ func runGatewayServer() {
 
 	listener,err := net.Listen("tcp", ":8080")
 	if err != nil {
-		log.Fatal("cannot create listener", err)
+		log.Fatal().Msg("cannot create listener")
 	}
 
-	log.Printf("start gateway server at %s", listener.Addr().String())
-	err = http.Serve(listener, mux)
+	log.Info().Msgf("start gateway server at %s", listener.Addr().String())
+	handler := gapi.HttpLogger(mux)
+	err = http.Serve(listener, handler)
 	if err != nil {
-		log.Fatal("cannot start gateway server",err)
+		log.Fatal().Msg("cannot start gateway server")
+
 	}
-
-
-
-
-	
 }
